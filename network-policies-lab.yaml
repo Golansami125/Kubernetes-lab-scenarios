@@ -1,0 +1,162 @@
+# Namespaces
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arctic
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: atlantic
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pacific
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: secret
+---
+# Default permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: default-permissions
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "namespaces"
+  verbs:
+  - "get"
+  - "list"
+  - "watch"
+- apiGroups:
+  - "networking.k8s.io"
+  resources:
+  - "networkpolicies"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: default-permissions
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: default-permissions
+subjects:
+- kind: Group
+  name: system:authenticated
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: everything-pods
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - "pods"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: everything-pods-secret-ns
+  namespace: secret
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: everything-pods
+subjects:
+- kind: Group
+  name: system:authenticated
+- kind: ServiceAccount
+  namespace: kube-system
+  name: default
+---
+# Network Policies
+# Arctic-ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: freeze-incoming
+  namespace: arctic
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              freese: brrr
+      ports:
+        - protocol: TCP
+          port: 8o
+---
+# Atlantic-ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: atlantincoming
+  namespace: pacific
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: atlantic
+      ports:
+        - protocol: TCP
+          port: 53
+---
+# Pacific-ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: spacific
+  namespace: pacific
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: atlantic
+      ports:
+        - protocol: TCP
+          port: 53
+---
+# Deployment for the Watch Script
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: np-watcher
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: np-watcher
+  template:
+    metadata:
+      labels:
+        app: np-watcher
+    spec:
+      containers:
+      - name: np-watcher
+        image: golansami/net-lab
+        command: ["python3"]
+        args: ["/tmp/np-watch.py"]
+      restartPolicy: Always
