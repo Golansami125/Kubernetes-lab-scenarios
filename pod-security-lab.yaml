@@ -142,6 +142,7 @@ spec:
         image: golansami/ps-lab
         command: ["python3"]
         args: ["/tmp/pod-security-watch.py"]
+      restartPolicy: Always
 ---
 # lincoln pods
 apiVersion: v1
